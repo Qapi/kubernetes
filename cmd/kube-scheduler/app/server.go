@@ -66,12 +66,12 @@ import (
 
 // NewSchedulerCommand creates a *cobra.Command object with default parameters
 func NewSchedulerCommand() *cobra.Command {
-	opts, err := options.NewOptions()
+	opts, err := options.NewOptions() //新建储存scheduler的配置的options
 	if err != nil {
 		glog.Fatalf("unable to initialize command options: %v", err)
 	}
 
-	cmd := &cobra.Command{
+	cmd := &cobra.Command{ //定义Scheduler的Commandz
 		Use: "kube-scheduler",
 		Long: `The Kubernetes scheduler is a policy-rich, topology-aware,
 workload-specific function that significantly impacts availability, performance,
@@ -88,12 +88,12 @@ through the API as necessary.`,
 				fmt.Fprint(os.Stderr, "arguments are not supported\n")
 			}
 
-			if errs := opts.Validate(); len(errs) > 0 {
+			if errs := opts.Validate(); len(errs) > 0 { //检查配置参数
 				fmt.Fprintf(os.Stderr, "%v\n", utilerrors.NewAggregate(errs))
 				os.Exit(1)
 			}
 
-			if len(opts.WriteConfigTo) > 0 {
+			if len(opts.WriteConfigTo) > 0 { //检查是否有writeconfigto参数，如有，将Component配置写入writeconfigto参数的文件
 				if err := options.WriteConfigFile(opts.WriteConfigTo, &opts.ComponentConfig); err != nil {
 					fmt.Fprintf(os.Stderr, "%v\n", err)
 					os.Exit(1)
@@ -102,21 +102,21 @@ through the API as necessary.`,
 				return
 			}
 
-			c, err := opts.Config()
+			c, err := opts.Config() //根据options生成config结构体
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
 			}
 
 			stopCh := make(chan struct{})
-			if err := Run(c.Complete(), stopCh); err != nil {
+			if err := Run(c.Complete(), stopCh); err != nil { //执行server.go中的Run函数
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
 			}
 		},
 	}
 
-	opts.AddFlags(cmd.Flags())
+	opts.AddFlags(cmd.Flags()) //添加Scheduler的配置参数
 	cmd.MarkFlagFilename("config", "yaml", "yml", "json")
 
 	return cmd
