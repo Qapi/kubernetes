@@ -135,14 +135,14 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.WriteConfigTo, "write-config-to", o.WriteConfigTo, "If set, write the configuration values to this file and exit.")
 	fs.StringVar(&o.Master, "master", o.Master, "The address of the Kubernetes API server (overrides any value in kubeconfig)")
 
-	o.SecureServing.AddFlags(fs)
-	o.CombinedInsecureServing.AddFlags(fs)
-	o.Authentication.AddFlags(fs)
-	o.Authorization.AddFlags(fs)
-	o.Deprecated.AddFlags(fs, &o.ComponentConfig)
+	o.SecureServing.AddFlags(fs)                  //安全参数，包括BindAddress，BindPort，cert-dir，TLS的几个参数，及http2-max-streams-per-connection
+	o.CombinedInsecureServing.AddFlags(fs)        //address和port两个参数
+	o.Authentication.AddFlags(fs)                 //authentication的几个参数，client-ca-file，requestheader的几个参数
+	o.Authorization.AddFlags(fs)                  //authorization的几个参数
+	o.Deprecated.AddFlags(fs, &o.ComponentConfig) //除address和port以外，其他mark了Deprecated的参数
 
-	leaderelectionconfig.BindFlags(&o.ComponentConfig.LeaderElection.LeaderElectionConfiguration, fs)
-	utilfeature.DefaultFeatureGate.AddFlag(fs)
+	leaderelectionconfig.BindFlags(&o.ComponentConfig.LeaderElection.LeaderElectionConfiguration, fs) //leader-select的几个参数
+	utilfeature.DefaultFeatureGate.AddFlag(fs)                                                        //FeatureGate参数
 }
 
 // ApplyTo applies the scheduler options to the given scheduler app configuration.

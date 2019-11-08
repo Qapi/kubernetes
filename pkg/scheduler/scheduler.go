@@ -186,7 +186,7 @@ func (sched *Scheduler) Run() {
 		return
 	}
 
-	go wait.Until(sched.scheduleOne, 0, sched.config.StopEverything)
+	go wait.Until(sched.scheduleOne, 0, sched.config.StopEverything) // scheduleOne 开始真正的调度
 }
 
 // Config return scheduler's config pointer. It is exposed for testing purposes.
@@ -413,8 +413,8 @@ func (sched *Scheduler) bind(assumed *v1.Pod, b *v1.Binding) error {
 
 // scheduleOne does the entire scheduling workflow for a single pod.  It is serialized on the scheduling algorithm's host fitting.
 func (sched *Scheduler) scheduleOne() {
-	pod := sched.config.NextPod()
-	if pod.DeletionTimestamp != nil {
+	pod := sched.config.NextPod()     // 从FIFO queue中取出一个需要调度的pod
+	if pod.DeletionTimestamp != nil { //检查是否已teminate
 		sched.config.Recorder.Eventf(pod, v1.EventTypeWarning, "FailedScheduling", "skip schedule deleting pod: %v/%v", pod.Namespace, pod.Name)
 		glog.V(3).Infof("Skip schedule deleting pod: %v/%v", pod.Namespace, pod.Name)
 		return
@@ -424,13 +424,13 @@ func (sched *Scheduler) scheduleOne() {
 
 	// Synchronously attempt to find a fit for the pod.
 	start := time.Now()
-	suggestedHost, err := sched.schedule(pod)
+	suggestedHost, err := sched.schedule(pod) //执行调度算法，执行配置的预选和优选策略，选出最合适pod部署的node
 	if err != nil {
 		// schedule() may have failed because the pod would not fit on any host, so we try to
 		// preempt, with the expectation that the next time the pod is tried for scheduling it
 		// will fit due to the preemption. It is also possible that a different pod will schedule
 		// into the resources that were preempted, but this is harmless.
-		if fitError, ok := err.(*core.FitError); ok {
+		if fitError, ok := err.(*core.FitError); ok { //如果调度返回预选和优选策略失败，则进行PodPriority优先调度
 			preemptionStartTime := time.Now()
 			sched.preempt(pod, fitError)
 			metrics.PreemptionAttempts.Inc()
@@ -451,7 +451,7 @@ func (sched *Scheduler) scheduleOne() {
 	// Otherwise, binding of volumes is started after the pod is assumed, but before pod binding.
 	//
 	// This function modifies 'assumedPod' if volume binding is required.
-	allBound, err := sched.assumeVolumes(assumedPod, suggestedHost)
+	allBound, err := sched.assumeVolumes(assumedPod, suggestedHost) //assume volumes bind到pod
 	if err != nil {
 		return
 	}
@@ -465,13 +465,13 @@ func (sched *Scheduler) scheduleOne() {
 	go func() {
 		// Bind volumes first before Pod
 		if !allBound {
-			err = sched.bindVolumes(assumedPod)
+			err = sched.bindVolumes(assumedPod) //assume pod到将要调度的node
 			if err != nil {
 				return
 			}
 		}
 
-		err := sched.bind(assumedPod, &v1.Binding{
+		err := sched.bind(assumedPod, &v1.Binding{ //bind pod 到选出来的node
 			ObjectMeta: metav1.ObjectMeta{Namespace: assumedPod.Namespace, Name: assumedPod.Name, UID: assumedPod.UID},
 			Target: v1.ObjectReference{
 				Kind: "Node",

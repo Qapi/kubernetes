@@ -71,7 +71,7 @@ func NewSchedulerCommand() *cobra.Command {
 		glog.Fatalf("unable to initialize command options: %v", err)
 	}
 
-	cmd := &cobra.Command{ //定义Scheduler的Commandz
+	cmd := &cobra.Command{ //定义Scheduler的Command
 		Use: "kube-scheduler",
 		Long: `The Kubernetes scheduler is a policy-rich, topology-aware,
 workload-specific function that significantly impacts availability, performance,
@@ -129,6 +129,11 @@ func Run(c schedulerserverconfig.CompletedConfig, stopCh <-chan struct{}) error 
 
 	// Apply algorithms based on feature gates.
 	// TODO: make configurable?
+	// 检查feature gate的设置
+	// 如果feature gate的TaintNodesByCondition参数enable了，
+	// 删除预选策略 "CheckNodeCondition",    "CheckNodeMemoryPressure", "CheckNodePIDPressurePred" "CheckNodeDiskPressure",
+	// 注册 PodToleratesNodeTaints & CheckNodeUnschedulable两个预选策略，
+	// 如果feature gate的ResourceLimitsPriorityFunction参数enable了，注册ResourceLimitsPriorityMap优选策略
 	algorithmprovider.ApplyFeatureGates()
 
 	// Configz registration.
@@ -139,20 +144,20 @@ func Run(c schedulerserverconfig.CompletedConfig, stopCh <-chan struct{}) error 
 	}
 
 	// Build a scheduler config from the provided algorithm source.
-	schedulerConfig, err := NewSchedulerConfig(c)
+	schedulerConfig, err := NewSchedulerConfig(c) // 生成scheduler的配置
 	if err != nil {
 		return err
 	}
 
 	// Create the scheduler.
-	sched := scheduler.NewFromConfig(schedulerConfig)
+	sched := scheduler.NewFromConfig(schedulerConfig) //根据配置生成scheduler
 
 	// Prepare the event broadcaster.
-	if c.Broadcaster != nil && c.EventClient != nil {
+	if c.Broadcaster != nil && c.EventClient != nil { //准备事件广播
 		c.Broadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: c.EventClient.Events("")})
 	}
 
-	// Start up the healthz server.
+	// Start up the healthz server. //如下3个if语句是启动healthz和metrics接口
 	if c.InsecureServing != nil {
 		separateMetrics := c.InsecureMetricsServing != nil
 		handler := buildHandlerChain(newHealthzHandler(&c.ComponentConfig, separateMetrics), nil, nil)
@@ -174,7 +179,7 @@ func Run(c schedulerserverconfig.CompletedConfig, stopCh <-chan struct{}) error 
 		}
 	}
 
-	// Start all informers.
+	// Start all informers.  //启动pod informer watch pod的变化
 	go c.PodInformer.Informer().Run(stopCh)
 	c.InformerFactory.Start(stopCh)
 
@@ -200,7 +205,7 @@ func Run(c schedulerserverconfig.CompletedConfig, stopCh <-chan struct{}) error 
 	}()
 
 	// If leader election is enabled, run via LeaderElector until done and exit.
-	if c.LeaderElection != nil {
+	if c.LeaderElection != nil { //选举leader
 		c.LeaderElection.Callbacks = leaderelection.LeaderCallbacks{
 			OnStartedLeading: run,
 			OnStoppedLeading: func() {
@@ -218,7 +223,7 @@ func Run(c schedulerserverconfig.CompletedConfig, stopCh <-chan struct{}) error 
 	}
 
 	// Leader election is disabled, so run inline until done.
-	run(ctx)
+	run(ctx) //启动调度
 	return fmt.Errorf("finished without leader elect")
 }
 
