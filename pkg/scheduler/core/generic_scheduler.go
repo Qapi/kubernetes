@@ -395,6 +395,7 @@ func (g *genericScheduler) findNodesThatFit(pod *v1.Pod, nodes []*v1.Node) ([]*v
 			equivClass = equivalence.NewClass(pod)
 		}
 
+		// CheckNode调用podFitsOnNode函数，用配置的所有的predicates policy对node进行检查
 		checkNode := func(i int) {
 			var nodeCache *equivalence.NodeCache
 			nodeName := g.cache.NodeTree().Next()
@@ -435,6 +436,7 @@ func (g *genericScheduler) findNodesThatFit(pod *v1.Pod, nodes []*v1.Node) ([]*v
 
 		// Stops searching for more nodes once the configured number of feasible nodes
 		// are found.
+		// 根据node的数量，最多启动16个go routine worker 执行CheckNode
 		workqueue.ParallelizeUntil(ctx, 16, int(allNodes), checkNode)
 
 		filtered = filtered[:filteredLen]
@@ -443,6 +445,7 @@ func (g *genericScheduler) findNodesThatFit(pod *v1.Pod, nodes []*v1.Node) ([]*v
 		}
 	}
 
+	// 如果配置了extender，则在执行extender 对node进行筛选
 	if len(filtered) > 0 && len(g.extenders) != 0 {
 		for _, extender := range g.extenders {
 			if !extender.IsInterested(pod) {
